@@ -70,6 +70,25 @@ def decode_token(token: str, expected_scope: str) -> str:
         raise credentials_exception
 
 
+def create_email_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(UTC) + timedelta(days=7)
+    to_encode.update({"iat": datetime.now(UTC), "exp": expire})
+    return jwt.encode(to_encode, config.SECRET_KEY, algorithm=config.ALGORITHM)
+
+
+async def get_email_from_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
+        email = payload["sub"]
+        return email
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid token for email verification",
+        )
+
+
 def _user_cache_key(username: str) -> str:
     return f"user:{username}"
 

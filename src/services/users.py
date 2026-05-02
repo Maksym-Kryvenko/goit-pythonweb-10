@@ -49,6 +49,11 @@ class UserService:
     async def set_refresh_token(self, user_id: int, refresh_token: str | None) -> bool:
         return await self.user_repository.set_refresh_token(user_id, refresh_token)
 
+    async def confirmed_email(self, email: str) -> None:
+        user = await self.user_repository.get_user_by_email(email)
+        if user:
+            await self.user_repository.set_verified(user.id, True)
+
     async def upload_avatar(self, user: User, file: UploadFile) -> User | None:
         if not (
             config.CLOUDINARY_CLOUD_NAME

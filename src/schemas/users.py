@@ -37,6 +37,10 @@ class UserLogin(BaseModel):
     password: str
 
 
+class RequestEmail(BaseModel):
+    email: EmailStr
+
+
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None

@@ -1,5 +1,5 @@
+from pydantic import ConfigDict, EmailStr, model_validator
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict, model_validator
 
 class Settings(BaseSettings):
     # POSTGRESQL
@@ -25,6 +25,18 @@ class Settings(BaseSettings):
     REDIS_PORT: int
     REDIS_DB: int
     USER_CACHE_TTL: int
+
+    # MAIL
+    MAIL_USERNAME: EmailStr = "example@example.com"
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: EmailStr = "example@example.com"
+    MAIL_PORT: int = 465
+    MAIL_SERVER: str = "smtp.example.com"
+    MAIL_FROM_NAME: str = "Rest API Service"
+    MAIL_STARTTLS: bool = False
+    MAIL_SSL_TLS: bool = True
+    USE_CREDENTIALS: bool = True
+    VALIDATE_CERTS: bool = True
 
     # CLOUDINARY
     CLOUDINARY_CLOUD_NAME: str | None = None
