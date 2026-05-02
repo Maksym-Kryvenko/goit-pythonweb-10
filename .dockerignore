@@ -1,0 +1,26 @@
+# Git
+.git/
+.gitignore
+
+# Local env files
+.env
+
+# Docker files (no need to copy into image)
+Dockerfile
+docker-compose.yaml
+.dockerignore
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Virtual environment
+.venv/
+
+# Tests
+tests/
+
+# Docs
+*.md

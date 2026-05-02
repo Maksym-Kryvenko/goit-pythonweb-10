@@ -1,0 +1,10 @@
+# Local dev environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Reference md files
+*.md
+!README.md
