@@ -13,7 +13,16 @@ dependencies = [
     "sqlalchemy (>=2.0.49,<3.0.0)",
     "alembic (>=1.18.4,<2.0.0)",
     "python-dotenv (>=1.2.2,<2.0.0)",
-    "uvicorn (>=0.46.0,<0.47.0)"
+    "uvicorn (>=0.46.0,<0.47.0)",
+    "pydantic-settings (>=2.14.0,<3.0.0)",
+    "bcrypt",
+    "python-jose[cryptography]",
+    "fastapi-mail",
+    "cloudinary",
+    "redis",
+    "libgravatar",
+    "python-multipart",
+    "slowapi ; python_version >= '3.14' and python_version < '4.0'"
 ]
 
 

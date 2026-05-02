@@ -3,12 +3,13 @@ from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repository.contacts import ContactRepository
-from src.schemas import ContactCreate, ContactUpdate, ContactResponse
+from src.schemas.contacts import ContactCreate, ContactUpdate, ContactResponse
+from src.schemas.users import UserResponse
 
 
 class ContactService:
-    def __init__(self, db: AsyncSession):
-        self.repository = ContactRepository(db)
+    def __init__(self, db: AsyncSession, current_user: UserResponse):
+        self.repository = ContactRepository(db, current_user)
 
     async def get_contacts(
         self,

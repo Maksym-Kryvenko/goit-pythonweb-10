@@ -4,13 +4,14 @@ from typing import List, Optional, Tuple
 from sqlalchemy import select, or_, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import Contact
-from src.schemas import ContactCreate, ContactUpdate, ContactResponse
+from src.database.models import Contact, User
+from src.schemas.contacts import ContactCreate, ContactUpdate, ContactResponse
 
 
 class ContactRepository:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, current_user: User):
         self.db = session
+        self.current_user = current_user
 
     async def get_contacts(
         self,
@@ -19,7 +20,7 @@ class ContactRepository:
         q: str | None = None,
         birthday_range: Optional[Tuple[date, date]] = None,
     ) -> List[ContactResponse]:
-        stmt = select(Contact)
+        stmt = select(Contact).where(Contact.user_id == self.current_user.id)
 
         if q:
             stmt = stmt.where(
@@ -56,19 +57,25 @@ class ContactRepository:
         return [ContactResponse.model_validate(contact) for contact in contacts]
 
     async def get_contact(self, contact_id: int) -> ContactResponse | None:
-        result = await self.db.execute(select(Contact).where(Contact.id == contact_id))
+        result = await self.db.execute(select(Contact).where(
+            Contact.id == contact_id, 
+            Contact.user_id == self.current_user.id,
+            ))
         contact = result.scalar_one_or_none()
         return ContactResponse.model_validate(contact) if contact else None
 
     async def create_contact(self, contact_data: ContactCreate) -> ContactResponse:
-        new_contact = Contact(**contact_data.model_dump())
+        new_contact = Contact(**contact_data.model_dump(), user_id=self.current_user.id)
         self.db.add(new_contact)
         await self.db.flush()
         await self.db.refresh(new_contact)
         return ContactResponse.model_validate(new_contact)
 
     async def update_contact(self, contact_id: int, contact_data: ContactUpdate) -> ContactResponse | None:
-        result = await self.db.execute(select(Contact).where(Contact.id == contact_id))
+        result = await self.db.execute(select(Contact).where(
+            Contact.id == contact_id, 
+            Contact.user_id == self.current_user.id,
+            ))
         contact = result.scalar_one_or_none()
         if not contact:
             return None
@@ -79,7 +86,10 @@ class ContactRepository:
         return ContactResponse.model_validate(contact)
 
     async def delete_contact(self, contact_id: int) -> bool:
-        result = await self.db.execute(select(Contact).where(Contact.id == contact_id))
+        result = await self.db.execute(select(Contact).where(
+            Contact.id == contact_id, 
+            Contact.user_id == self.current_user.id,
+            ))
         contact = result.scalar_one_or_none()
         if not contact:
             return False

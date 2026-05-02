@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 import re
 
 PHONE_PATTERN = re.compile(r"^\+?\d{7,15}$")
@@ -35,6 +35,11 @@ class ContactBase(BaseModel):
     @classmethod
     def check_birthday(cls, v: date) -> date:
         return validate_birthday(v)
+    
+    @field_validator("email")
+    @classmethod
+    def check_email(cls, v: EmailStr) -> EmailStr:
+        return v
 
 
 class ContactCreate(ContactBase):
@@ -63,4 +68,4 @@ class ContactUpdate(BaseModel):
 class ContactResponse(ContactBase):
     id: int
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
