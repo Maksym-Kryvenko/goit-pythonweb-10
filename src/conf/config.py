@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
     REDIS_DB: int
+    USER_CACHE_TTL: int
 
     # CLOUDINARY
     CLOUDINARY_CLOUD_NAME: str | None = None

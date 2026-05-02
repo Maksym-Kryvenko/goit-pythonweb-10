@@ -1,14 +1,17 @@
+import redis.asyncio as aioredis
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.db import get_db_session
+from src.database.redis import get_redis
 from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest
 from src.services.users import UserService
 from src.services.auth import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    invalidate_user_cache,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -57,6 +60,7 @@ async def login(
 async def refresh(
     payload: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
 ):
     username = decode_token(payload.refresh_token, expected_scope="refresh_token")
 
@@ -72,6 +76,7 @@ async def refresh(
     access_token = await create_access_token({"sub": user.username})
     refresh_token = await create_refresh_token({"sub": user.username})
     await user_service.set_refresh_token(user.id, refresh_token)
+    await invalidate_user_cache(username, redis)
 
     return Token(
         access_token=access_token, refresh_token=refresh_token, token_type="bearer"
@@ -82,9 +87,11 @@ async def refresh(
 async def logout(
     payload: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
 ):
     username = decode_token(payload.refresh_token, expected_scope="refresh_token")
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
     if user is not None:
         await user_service.set_refresh_token(user.id, None)
+        await invalidate_user_cache(username, redis)

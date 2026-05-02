@@ -1,8 +1,10 @@
 import hashlib
-from datetime import datetime, timedelta, UTC
+import json
+from datetime import datetime, timedelta, date, UTC
 from typing import Optional
 
 import bcrypt
+import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +12,10 @@ from jose import JWTError, jwt
 
 from src.database.db import get_db_session
 from src.database.models import User
+from src.database.redis import get_redis
 from src.conf.config import config
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
 
 def _prehash(password: str) -> bytes:
     # SHA-256 reduces any password to 32 bytes so bcrypt never silently truncates
@@ -68,13 +70,55 @@ def decode_token(token: str, expected_scope: str) -> str:
         raise credentials_exception
 
 
+def _user_cache_key(username: str) -> str:
+    return f"user:{username}"
+
+
+def _user_to_json(user: User) -> str:
+    return json.dumps({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "hashed_password": user.hashed_password,
+        "avatar_url": user.avatar_url,
+        "is_verified": user.is_verified,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "refresh_token": user.refresh_token,
+    })
+
+
+def _user_from_json(data: str) -> User:
+    payload = json.loads(data)
+    user = User()
+    user.id = payload["id"]
+    user.username = payload["username"]
+    user.email = payload["email"]
+    user.hashed_password = payload["hashed_password"]
+    user.avatar_url = payload.get("avatar_url")
+    user.is_verified = payload["is_verified"]
+    created_at = payload.get("created_at")
+    user.created_at = date.fromisoformat(created_at) if created_at else None
+    user.refresh_token = payload.get("refresh_token")
+    return user
+
+
+async def invalidate_user_cache(username: str, redis: aioredis.Redis) -> None:
+    await redis.delete(_user_cache_key(username))
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
 ) -> User:
     from src.services.users import UserService
 
     username = decode_token(token, expected_scope="access_token")
+
+    cached = await redis.get(_user_cache_key(username))
+    if cached:
+        return _user_from_json(cached)
+
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
     if user is None:
@@ -83,4 +127,6 @@ async def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    await redis.set(_user_cache_key(username), _user_to_json(user), ex=config.USER_CACHE_TTL)
     return user
