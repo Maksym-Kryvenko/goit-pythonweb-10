@@ -1,4 +1,5 @@
 from typing import List
+import logging
 
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +12,7 @@ from src.services.contacts import ContactService
 from src.services.auth import get_current_user
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
-
+logger = logging.getLogger(__name__)
 
 @router.get("/", response_model=List[ContactResponse])
 @limiter.limit("10/minute")
@@ -39,6 +40,7 @@ async def get_contact(
     service = ContactService(db, current_user)
     contact = await service.get_contact(contact_id)
     if not contact:
+        logger.info(f"Contact {contact_id} not found for {current_user.username} while reading.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     return contact
 
@@ -67,6 +69,7 @@ async def update_contact(
     service = ContactService(db, current_user)
     updated = await service.update_contact(contact_id, contact)
     if not updated:
+        logger.info(f"Contact {contact_id} not found for {current_user.username} while patching.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     return updated
 
@@ -82,4 +85,5 @@ async def delete_contact(
     service = ContactService(db, current_user)
     deleted = await service.delete_contact(contact_id)
     if not deleted:
+        logger.info(f"Contact {contact_id} not found for {current_user.username} while deleting.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")

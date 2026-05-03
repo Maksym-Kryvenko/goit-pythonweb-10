@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from datetime import datetime, timedelta, date, UTC
 from typing import Optional
 
@@ -16,6 +17,7 @@ from src.database.redis import get_redis
 from src.conf.config import config
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+logger = logging.getLogger(__name__)
 
 def _prehash(password: str) -> bytes:
     # SHA-256 reduces any password to 32 bytes so bcrypt never silently truncates
@@ -64,9 +66,11 @@ def decode_token(token: str, expected_scope: str) -> str:
         username = payload.get("sub")
         scope = payload.get("scope")
         if username is None or scope != expected_scope:
+            logger.warning(f"Could not validate credentials for username: {username}.")
             raise credentials_exception
         return username
     except JWTError:
+        logger.warning(f"Could not validate credentials.")
         raise credentials_exception
 
 
@@ -83,6 +87,7 @@ async def get_email_from_token(token: str) -> str:
         email = payload["sub"]
         return email
     except JWTError:
+        logger.warning("Invalid token for email verification.")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid token for email verification",
@@ -141,6 +146,7 @@ async def get_current_user(
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
     if user is None:
+        logging.warning("Could not validate credentials.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
@@ -5,6 +6,8 @@ from fastapi_mail.errors import ConnectionErrors
 from pydantic import EmailStr
 
 from src.conf.config import config
+
+logger = logging.getLogger(__name__)
 
 conf = ConnectionConfig(
     MAIL_USERNAME=config.MAIL_USERNAME,
@@ -38,5 +41,5 @@ async def send_email(email: EmailStr, username: str, host: str):
         )
         fm = FastMail(conf)
         await fm.send_message(message, template_name="verify_email.html")
-    except ConnectionErrors as err:
-        print(err)
+    except ConnectionErrors as e:
+        logger.warning(f"Failed to connect while sending email: {e}")

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
 class Token(BaseModel):
@@ -10,6 +10,18 @@ class Token(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "user@example.com",
+                "password": "password123"
+            }
+        }
+    }
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

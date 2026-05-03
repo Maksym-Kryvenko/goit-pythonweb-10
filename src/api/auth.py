@@ -1,11 +1,12 @@
+import logging
 import redis.asyncio as aioredis
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.conf.limiter import limiter
 from src.database.db import get_db_session
 from src.database.redis import get_redis
-from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest, RequestEmail
+from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest, RequestEmail, LoginRequest
 from src.services.users import UserService
 from src.services.auth import (
     create_access_token,
@@ -16,27 +17,32 @@ from src.services.auth import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
 async def signup(
+    request: Request,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
-    request: Request,
     db: AsyncSession = Depends(get_db_session),
 ):
     user_service = UserService(db)
 
     if await user_service.get_user_by_email(user_data.email):
+        logger.info(f"Signup failed: email already registered")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already in use"
         )
     if await user_service.get_user_by_username(user_data.username):
+        logger.info(f"Signup failed: username already taken")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Username already in use"
         )
 
     new_user = await user_service.create_user(user_data)
+    logger.info(f"New user registered: {new_user.username}")
 
     from src.services.email import send_email
     background_tasks.add_task(send_email, new_user.email, new_user.username, str(request.base_url))
@@ -45,19 +51,23 @@ async def signup(
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    request: Request,
+    credentials: LoginRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
     user_service = UserService(db)
-    user = await user_service.get_user_by_username(form_data.username)
-    if not user or not user_service.verify_password(form_data.password, user.hashed_password):
+    user = await user_service.get_user_by_username(credentials.username)
+    if not user or not user_service.verify_password(credentials.password, user.hashed_password):
+        logger.debug(f"Failed login attempt from IP: {request.client.host}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_verified:
+        logger.info(f"Login blocked: email not verified for user {user.id}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email address not confirmed",
@@ -78,6 +88,7 @@ async def confirmed_email(token: str, db: AsyncSession = Depends(get_db_session)
     user_service = UserService(db)
     user = await user_service.get_user_by_email(email)
     if user is None:
+        logger.warning(f"Verification error: invalid or expired token")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
         )
@@ -106,7 +117,9 @@ async def request_email(
 
 
 @router.post("/refresh", response_model=Token)
+@limiter.limit("5/minute")
 async def refresh(
+    request: Request,
     payload: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
@@ -116,6 +129,7 @@ async def refresh(
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
     if user is None or user.refresh_token != payload.refresh_token:
+        logger.warning(f"Invalid refresh token attempt from IP: {request.client.host}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -126,6 +140,7 @@ async def refresh(
     refresh_token = await create_refresh_token({"sub": user.username})
     await user_service.set_refresh_token(user.id, refresh_token)
     await invalidate_user_cache(username, redis)
+    logger.info(f"Token refreshed for user {user.id}")
 
     return Token(
         access_token=access_token, refresh_token=refresh_token, token_type="bearer"
@@ -144,3 +159,4 @@ async def logout(
     if user is not None:
         await user_service.set_refresh_token(user.id, None)
         await invalidate_user_cache(username, redis)
+        logger.info(f"User logout: {user.id}")

@@ -1,4 +1,5 @@
 import contextlib
+import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from src.conf.config import config
 
+logger = logging.getLogger(__name__)
 
 class DatabaseSessionManager:
     def __init__(self, db_url: str):
@@ -18,6 +20,7 @@ class DatabaseSessionManager:
     @contextlib.asynccontextmanager
     async def get_session(self):
         if self._session_maker is None:
+            logger.warning("Database session is not initialized.")
             raise SQLAlchemyError("Database session is not initialized.")
         async with self._session_maker() as session:
             try:
@@ -25,6 +28,7 @@ class DatabaseSessionManager:
                 await session.commit()
             except Exception as e:
                 await session.rollback()
+                logger.warning("Failed to create a session.")
                 raise e
             finally:
                 await session.close()
