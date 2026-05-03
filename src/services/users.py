@@ -3,6 +3,7 @@ from typing import Optional
 
 import cloudinary
 import cloudinary.uploader
+from cloudinary.exceptions import Error as CloudinaryError
 from fastapi import UploadFile
 from libgravatar import Gravatar
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,10 +71,17 @@ class UserService:
         )
 
         public_id = f"contacts_app/avatars/{user.username}"
-        upload_result = cloudinary.uploader.upload(
-            file.file, public_id=public_id, overwrite=True
-        )
-        avatar_url = cloudinary.CloudinaryImage(public_id).build_url(
-            width=250, height=250, crop="fill", version=upload_result.get("version")
-        )
-        return await self.user_repository.update_avatar_url(user.id, avatar_url)
+        try:
+            upload_result = cloudinary.uploader.upload(
+                file.file, public_id=public_id, overwrite=True
+            )
+            avatar_url = cloudinary.CloudinaryImage(public_id).build_url(
+                width=250, height=250, crop="fill", version=upload_result.get("version")
+            )
+            return await self.user_repository.update_avatar_url(user.id, avatar_url)
+        except CloudinaryError as e:
+            logger.error(f"Cloudinary API error: {e}")
+            raise HTTPException(status_code=400, detail="Avatar upload failed")
+        except Exception as e:
+            logger.error(f"Unexpected error during avatar upload: {e}")
+            raise HTTPException(status_code=500, detail="Server error")          
