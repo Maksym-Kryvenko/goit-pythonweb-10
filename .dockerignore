@@ -4,6 +4,7 @@
 
 # Local env files
 .env
+.*/
 
 # Docker files (no need to copy into image)
 Dockerfile

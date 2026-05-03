@@ -14,7 +14,10 @@ from src.services.auth import get_current_user
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 logger = logging.getLogger(__name__)
 
-@router.get("/", response_model=List[ContactResponse])
+@router.get(
+    "/",
+    response_model=List[ContactResponse]
+)
 @limiter.limit("10/minute")
 async def get_contacts(
     request: Request,
@@ -29,7 +32,10 @@ async def get_contacts(
     return await service.get_contacts(skip=skip, limit=limit, q=q, upcoming_birthdays=upcoming_birthdays)
 
 
-@router.get("/{contact_id}", response_model=ContactResponse)
+@router.get(
+    "/{contact_id}",
+    response_model=ContactResponse
+)
 @limiter.limit("10/minute")
 async def get_contact(
     request: Request,
@@ -45,7 +51,11 @@ async def get_contact(
     return contact
 
 
-@router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=ContactResponse,
+    status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("10/minute")
 async def create_contact(
     request: Request,
@@ -57,7 +67,10 @@ async def create_contact(
     return await service.create_contact(contact)
 
 
-@router.patch("/{contact_id}", response_model=ContactResponse)
+@router.patch(
+    "/{contact_id}",
+    response_model=ContactResponse
+)
 @limiter.limit("10/minute")
 async def update_contact(
     request: Request,
@@ -74,7 +87,10 @@ async def update_contact(
     return updated
 
 
-@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
 @limiter.limit("10/minute")
 async def delete_contact(
     request: Request,

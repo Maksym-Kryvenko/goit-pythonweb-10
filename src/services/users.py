@@ -12,7 +12,7 @@ from src.conf.config import config
 from src.database.models import User
 from src.repository.users import UserRepository
 from src.schemas.users import UserCreate
-from src.services.auth import Hash
+from src.services.hash import Hash
 
 logger = logging.getLogger(__name__)
 _hash = Hash()

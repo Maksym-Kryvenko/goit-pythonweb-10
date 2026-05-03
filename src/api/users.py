@@ -1,4 +1,4 @@
-import logger
+import logging
 import redis.asyncio as aioredis
 from fastapi import APIRouter, HTTPException, Depends, status, Request, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -15,7 +15,10 @@ from src.services.auth import get_current_user, invalidate_user_cache
 router = APIRouter(prefix="/api/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse
+)
 @limiter.limit("10/minute")
 async def get_my_profile(
     request: Request,
@@ -24,7 +27,10 @@ async def get_my_profile(
     return current_user
 
 
-@router.patch("/avatar", response_model=UserResponse)
+@router.patch(
+    "/avatar",
+    response_model=UserResponse
+)
 @limiter.limit("5/minute")
 async def upload_avatar(
     request: Request,

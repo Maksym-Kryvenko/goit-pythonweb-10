@@ -1,13 +1,11 @@
-import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, date, UTC
 from typing import Optional
 
-import bcrypt
 import redis.asyncio as aioredis
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 
@@ -15,21 +13,11 @@ from src.database.db import get_db_session
 from src.database.models import User
 from src.database.redis import get_redis
 from src.conf.config import config
+from src.services.hash import Hash
+from src.services.users import UserService
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 logger = logging.getLogger(__name__)
-
-def _prehash(password: str) -> bytes:
-    # SHA-256 reduces any password to 32 bytes so bcrypt never silently truncates
-    return hashlib.sha256(password.encode()).hexdigest().encode()
-
-
-class Hash:
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return bcrypt.checkpw(_prehash(plain_password), hashed_password.encode())
-
-    def get_password_hash(self, password: str) -> str:
-        return bcrypt.hashpw(_prehash(password), bcrypt.gensalt()).decode()
+http_bearer = HTTPBearer()
 
 
 def _create_token(data: dict, expires_delta: int, token_type: str) -> str:
@@ -131,12 +119,21 @@ async def invalidate_user_cache(username: str, redis: aioredis.Redis) -> None:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
     db: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ) -> User:
-    from src.services.users import UserService
 
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
     username = decode_token(token, expected_scope="access_token")
 
     cached = await redis.get(_user_cache_key(username))
