@@ -114,7 +114,18 @@ All endpoints except `/api/auth/signup`, `/api/auth/login`, `/api/auth/confirmed
 ```
 Authorization: Bearer <access_token>
 ```
-
+### Login                                                                             
+- **Endpoint**: `POST /api/auth/login`                                                  
+- **Body**: JSON                      
+```json                                                                                 
+{                                                                                     
+  "username": "your_username",
+  "password": "your_password"
+}                                                                                       
+- Response: JWT tokens
+                                                                                        
+⚠️  Deprecated: form-data (application/x-www-form-urlencoded) no more suported. 
+  
 ### Rate Limiting
 
 - `/api/users/me` — 10 requests/minute
