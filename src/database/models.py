@@ -1,9 +1,14 @@
+import enum
 from datetime import date
-from sqlalchemy import Integer, String, Date, Boolean, func, ForeignKey
+from sqlalchemy import Integer, String, Date, Boolean, func, ForeignKey, Enum
 from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase, relationship
 
 class Base(DeclarativeBase):
     pass
+
+class RolesEnum(enum.Enum):
+    user = "user"
+    admin = "admin"
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -30,3 +35,4 @@ class User(Base):
     created_at: Mapped[date] = mapped_column(Date, server_default=func.now(), nullable=False)
     refresh_token: Mapped[str] = mapped_column(String(500), nullable=True)
     contacts: Mapped[list[Contact]] = relationship("Contact", back_populates="owner")
+    role: Mapped[RolesEnum] = mapped_column(Enum(RolesEnum), default=RolesEnum.user, nullable=False)

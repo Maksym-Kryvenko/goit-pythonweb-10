@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 
 from src.database.db import get_db_session
-from src.database.models import User
+from src.database.models import User, RolesEnum
 from src.database.redis import get_redis
 from src.conf.config import config
 from src.services.hash import Hash
@@ -96,6 +96,7 @@ def _user_to_json(user: User) -> str:
         "is_verified": user.is_verified,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "refresh_token": user.refresh_token,
+        "role": user.role.value if user.role else RolesEnum.user.value,
     })
 
 
@@ -111,6 +112,7 @@ def _user_from_json(data: str) -> User:
     created_at = payload.get("created_at")
     user.created_at = date.fromisoformat(created_at) if created_at else None
     user.refresh_token = payload.get("refresh_token")
+    user.role = RolesEnum(payload.get("role", RolesEnum.user.value))
     return user
 
 
@@ -127,6 +129,7 @@ async def get_current_user(
 
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
+        logging.warning("Could not validate credentials.")        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid Authorization header",
@@ -152,3 +155,12 @@ async def get_current_user(
 
     await redis.set(_user_cache_key(username), _user_to_json(user), ex=config.USER_CACHE_TTL)
     return user
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != RolesEnum.admin:
+        logging.info("It is not an admin user.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not sufficient access role.",
+        )
+    return current_user

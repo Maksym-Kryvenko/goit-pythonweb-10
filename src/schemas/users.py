@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from src.database.models import RolesEnum
 
 
 class Token(BaseModel):
@@ -40,6 +41,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     is_verified: bool = False
     created_at: Optional[datetime] = None
+    role: RolesEnum = RolesEnum.user
 
     model_config = ConfigDict(from_attributes=True)
 

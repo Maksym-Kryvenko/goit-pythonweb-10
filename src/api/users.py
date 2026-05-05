@@ -10,7 +10,7 @@ from src.database.models import User
 from src.database.redis import get_redis
 from src.schemas.users import UserResponse
 from src.services.users import UserService
-from src.services.auth import get_current_user, invalidate_user_cache
+from src.services.auth import get_current_user, invalidate_user_cache, require_admin
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -29,14 +29,14 @@ async def get_my_profile(
 
 @router.patch(
     "/avatar",
-    response_model=UserResponse
+    response_model=UserResponse,
 )
 @limiter.limit("5/minute")
 async def upload_avatar(
     request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     redis: aioredis.Redis = Depends(get_redis),
 ):
     service = UserService(db)
