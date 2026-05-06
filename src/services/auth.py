@@ -164,3 +164,15 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Not sufficient access role.",
         )
     return current_user
+
+async def create_password_reset_token(email: str) -> str:
+    # TTL 15 min
+    return _create_token(
+        data={"sub": email},
+        expires_delta=900,
+        token_type="password_reset",
+    )
+
+async def verify_password_reset_token(token: str) -> str:
+    email = decode_token(token, expected_scope="password_reset")
+    return email

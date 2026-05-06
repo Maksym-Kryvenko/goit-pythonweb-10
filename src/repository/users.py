@@ -66,6 +66,14 @@ class UserRepository:
         await self.db.flush()
         return True
 
+    async def update_password(self, user_id: int, hashed_password: str) -> bool:
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return False
+        user.hashed_password = hashed_password
+        await self.db.flush()
+        return True
+
     async def update_avatar_url(self, user_id: int, avatar_url: str) -> User | None:
         user = await self.get_user_by_id(user_id)
         if not user:

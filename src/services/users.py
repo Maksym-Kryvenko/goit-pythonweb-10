@@ -55,6 +55,9 @@ class UserService:
         if user:
             await self.user_repository.set_verified(user.id, True)
 
+    async def update_password(self, user_id: int, hashed_password: str) -> bool:
+        return await self.user_repository.update_password(user_id, hashed_password)
+
     async def upload_avatar(self, user: User, file: UploadFile) -> User | None:
         if not (
             config.CLOUDINARY_CLOUD_NAME

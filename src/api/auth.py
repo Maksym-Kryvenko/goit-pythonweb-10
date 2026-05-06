@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.conf.limiter import limiter
 from src.database.db import get_db_session
 from src.database.redis import get_redis
-from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest, RequestEmail, LoginRequest
+from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest, RequestEmail, LoginRequest, PasswordReset
 from src.services.users import UserService
 from src.services.auth import (
     create_access_token,
@@ -14,6 +14,8 @@ from src.services.auth import (
     decode_token,
     get_email_from_token,
     invalidate_user_cache,
+    create_password_reset_token,
+    verify_password_reset_token
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -160,3 +162,41 @@ async def logout(
         await user_service.set_refresh_token(user.id, None)
         await invalidate_user_cache(username, redis)
         logger.info(f"User logout: {user.id}")
+
+
+@router.post("/request-password-reset")
+@limiter.limit("1/minute")
+async def request_password_reset(
+    body: RequestEmail,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db_session),
+):
+    from src.services.email import send_reset_password_email
+    user_service = UserService(db)
+    user = await user_service.get_user_by_email(body.email)
+    if user:
+        background_tasks.add_task(
+            send_reset_password_email, user.email, user.username, str(request.base_url)
+        )
+    return {"message": "Reset link has been sent, check the email."}
+
+
+@router.post("/reset-password")
+@limiter.limit("1/minute")
+async def reset_password(
+    request: Request,
+    body: PasswordReset,
+    db: AsyncSession = Depends(get_db_session),
+):
+    email = verify_password_reset_token(body.token)
+
+    user_service = UserService(db)
+    user = await user_service.get_user_by_email(email)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    hashed_password = user_service.hash_password(body.new_password)
+    await user_service.update_password(user.id, hashed_password)
+
+    return {"message": "Password has been reset successfully!"}

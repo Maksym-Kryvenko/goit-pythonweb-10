@@ -61,3 +61,8 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     refresh_token: Optional[str] = None
     avatar_url: Optional[str] = None
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str
+    
