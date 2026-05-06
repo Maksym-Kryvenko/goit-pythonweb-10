@@ -9,3 +9,10 @@ __pycache__/
 # Reference md files
 *.md
 !README.md
+
+# Testing
+.coverage
+htmlcov/
+
+# Documentation (Sphinx build output)
+docs/build/
