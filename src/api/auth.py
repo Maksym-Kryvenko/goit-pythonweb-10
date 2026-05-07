@@ -189,7 +189,7 @@ async def reset_password(
     body: PasswordReset,
     db: AsyncSession = Depends(get_db_session),
 ):
-    email = verify_password_reset_token(body.token)
+    email = await verify_password_reset_token(body.token)
 
     user_service = UserService(db)
     user = await user_service.get_user_by_email(email)
