@@ -1,7 +1,14 @@
 from pydantic import ConfigDict, EmailStr, model_validator
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
+    """Application configuration loaded from environment variables or a .env file.
+
+    PostgreSQL, Redis, JWT, SMTP, and Cloudinary credentials are all read here.
+    ``DB_URL`` is assembled automatically via :meth:`assemble_db_url` after loading.
+    """
+
     # POSTGRESQL
     POSTGRESQL_USER: str
     POSTGRESQL_PASSWORD: str
@@ -9,7 +16,7 @@ class Settings(BaseSettings):
     POSTGRESQL_PORT: int
     POSTGRESQL_DB: str
     DB_URL: str | None = None
-    
+
     # WEB SERVER
     WEB_SERVER_HOST: str
     WEB_SERVER_PORT: int
@@ -43,14 +50,22 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str | None = None
     CLOUDINARY_API_SECRET: str | None = None
 
-    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore")
+    model_config = ConfigDict(
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
+    )
 
     @model_validator(mode="after")
     def assemble_db_url(self) -> "Settings":
+        """Build and store the full async PostgreSQL URL from individual credentials.
+
+        Returns:
+            The updated Settings instance with ``DB_URL`` populated.
+        """
         self.DB_URL = (
             f"postgresql+asyncpg://{self.POSTGRESQL_USER}:{self.POSTGRESQL_PASSWORD}"
             f"@{self.POSTGRESQL_HOST}:{self.POSTGRESQL_PORT}/{self.POSTGRESQL_DB}"
         )
         return self
+
 
 config = Settings()

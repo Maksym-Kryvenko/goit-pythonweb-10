@@ -9,7 +9,14 @@ from src.schemas.contacts import ContactCreate, ContactUpdate, ContactResponse
 
 
 class ContactRepository:
+    """Handles all database operations for contacts scoped to a specific user."""
+
     def __init__(self, session: AsyncSession, current_user: User):
+        """
+        Args:
+            session: Active async SQLAlchemy session.
+            current_user: The authenticated user whose contacts are managed.
+        """
         self.db = session
         self.current_user = current_user
 
@@ -20,6 +27,17 @@ class ContactRepository:
         q: str | None = None,
         birthday_range: Optional[Tuple[date, date]] = None,
     ) -> List[ContactResponse]:
+        """Return a paginated list of the current user's contacts with optional filters.
+
+        Args:
+            skip: Number of records to skip (offset).
+            limit: Maximum number of records to return.
+            q: Optional search string matched against first name, last name, or email.
+            birthday_range: Optional (start, end) date tuple to filter by upcoming birthday month/day.
+
+        Returns:
+            List of validated ContactResponse objects.
+        """
         stmt = select(Contact).where(Contact.user_id == self.current_user.id)
 
         if q:
@@ -44,10 +62,10 @@ class ContactRepository:
                 # Window spans two months (e.g. Apr 28 → May 5)
                 stmt = stmt.where(
                     or_(
-                        (extract("month", Contact.birthday) == today.month) &
-                        (extract("day", Contact.birthday) >= today.day),
-                        (extract("month", Contact.birthday) == end_date.month) &
-                        (extract("day", Contact.birthday) <= end_date.day),
+                        (extract("month", Contact.birthday) == today.month)
+                        & (extract("day", Contact.birthday) >= today.day),
+                        (extract("month", Contact.birthday) == end_date.month)
+                        & (extract("day", Contact.birthday) <= end_date.day),
                     )
                 )
 
@@ -57,25 +75,56 @@ class ContactRepository:
         return [ContactResponse.model_validate(contact) for contact in contacts]
 
     async def get_contact(self, contact_id: int) -> ContactResponse | None:
-        result = await self.db.execute(select(Contact).where(
-            Contact.id == contact_id, 
-            Contact.user_id == self.current_user.id,
-            ))
+        """Fetch a single contact by ID belonging to the current user.
+
+        Args:
+            contact_id: Primary key of the contact.
+
+        Returns:
+            ContactResponse if found, otherwise None.
+        """
+        result = await self.db.execute(
+            select(Contact).where(
+                Contact.id == contact_id,
+                Contact.user_id == self.current_user.id,
+            )
+        )
         contact = result.scalar_one_or_none()
         return ContactResponse.model_validate(contact) if contact else None
 
     async def create_contact(self, contact_data: ContactCreate) -> ContactResponse:
+        """Insert a new contact linked to the current user.
+
+        Args:
+            contact_data: Validated contact fields.
+
+        Returns:
+            The created ContactResponse.
+        """
         new_contact = Contact(**contact_data.model_dump(), user_id=self.current_user.id)
         self.db.add(new_contact)
         await self.db.flush()
         await self.db.refresh(new_contact)
         return ContactResponse.model_validate(new_contact)
 
-    async def update_contact(self, contact_id: int, contact_data: ContactUpdate) -> ContactResponse | None:
-        result = await self.db.execute(select(Contact).where(
-            Contact.id == contact_id, 
-            Contact.user_id == self.current_user.id,
-            ))
+    async def update_contact(
+        self, contact_id: int, contact_data: ContactUpdate
+    ) -> ContactResponse | None:
+        """Apply partial updates to an existing contact.
+
+        Args:
+            contact_id: Primary key of the contact to update.
+            contact_data: Fields to update (only set fields are applied).
+
+        Returns:
+            Updated ContactResponse, or None if the contact does not exist.
+        """
+        result = await self.db.execute(
+            select(Contact).where(
+                Contact.id == contact_id,
+                Contact.user_id == self.current_user.id,
+            )
+        )
         contact = result.scalar_one_or_none()
         if not contact:
             return None
@@ -86,10 +135,20 @@ class ContactRepository:
         return ContactResponse.model_validate(contact)
 
     async def delete_contact(self, contact_id: int) -> bool:
-        result = await self.db.execute(select(Contact).where(
-            Contact.id == contact_id, 
-            Contact.user_id == self.current_user.id,
-            ))
+        """Delete a contact owned by the current user.
+
+        Args:
+            contact_id: Primary key of the contact to delete.
+
+        Returns:
+            True if deleted, False if the contact was not found.
+        """
+        result = await self.db.execute(
+            select(Contact).where(
+                Contact.id == contact_id,
+                Contact.user_id == self.current_user.id,
+            )
+        )
         contact = result.scalar_one_or_none()
         if not contact:
             return False

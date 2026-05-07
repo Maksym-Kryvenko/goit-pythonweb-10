@@ -39,4 +39,3 @@ def test_update_avatar_user(mock_upload_avatar, client, get_token):
     assert data["avatar_url"] == fake_url
 
     mock_upload_avatar.assert_called_once()
-

@@ -82,14 +82,18 @@ async def test_get_user_by_id_not_found(user_repository, mock_session):
 
 @pytest.mark.asyncio
 async def test_create_user(user_repository, mock_session):
-    user_data = UserCreate(username="newuser", email="new@example.com", password="secret123")
+    user_data = UserCreate(
+        username="newuser", email="new@example.com", password="secret123"
+    )
 
     async def set_id(obj):
         obj.id = 1
 
     mock_session.refresh = AsyncMock(side_effect=set_id)
 
-    result = await user_repository.create_user(user_data, "hashed_secret", "http://avatar.url/1.png")
+    result = await user_repository.create_user(
+        user_data, "hashed_secret", "http://avatar.url/1.png"
+    )
 
     mock_session.add.assert_called_once()
     mock_session.flush.assert_called_once()

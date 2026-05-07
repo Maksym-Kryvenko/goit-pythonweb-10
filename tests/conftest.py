@@ -51,22 +51,26 @@ def init_models_wrap():
             await conn.run_sync(Base.metadata.create_all)
         async with TestingSessionLocal() as session:
             _h = Hash()
-            session.add_all([
-                User(
-                    username=test_user["username"],
-                    email=test_user["email"],
-                    hashed_password=_h.get_password_hash(test_user["password"]),
-                    is_verified=True,
-                    avatar_url="https://twitter.com/gravatar",
-                    role=RolesEnum.admin,
-                ),
-                User(
-                    username=unverified_user["username"],
-                    email=unverified_user["email"],
-                    hashed_password=_h.get_password_hash(unverified_user["password"]),
-                    is_verified=False,
-                ),
-            ])
+            session.add_all(
+                [
+                    User(
+                        username=test_user["username"],
+                        email=test_user["email"],
+                        hashed_password=_h.get_password_hash(test_user["password"]),
+                        is_verified=True,
+                        avatar_url="https://twitter.com/gravatar",
+                        role=RolesEnum.admin,
+                    ),
+                    User(
+                        username=unverified_user["username"],
+                        email=unverified_user["email"],
+                        hashed_password=_h.get_password_hash(
+                            unverified_user["password"]
+                        ),
+                        is_verified=False,
+                    ),
+                ]
+            )
             await session.commit()
 
     asyncio.run(init_models())
@@ -84,7 +88,7 @@ def client(init_models_wrap):
             except Exception as err:
                 await session.rollback()
                 raise
-    
+
     async def override_get_current_user():
         return User(
             id=1,
@@ -106,6 +110,7 @@ def client(init_models_wrap):
     yield TestClient(app)
     app.dependency_overrides.clear()
 
+
 @pytest_asyncio.fixture()
 async def get_token():
     token = await create_access_token(data={"sub": test_user["username"]})
@@ -115,6 +120,7 @@ async def get_token():
 @pytest.fixture
 def mock_session():
     return AsyncMock(spec=AsyncSession)
+
 
 @pytest.fixture
 def sample_user():

@@ -19,17 +19,48 @@ _hash = Hash()
 
 
 class UserService:
+    """Business logic layer for user account operations."""
+
     def __init__(self, db: AsyncSession):
+        """
+        Args:
+            db: Active async SQLAlchemy session.
+        """
         self.db = db
         self.user_repository = UserRepository(db)
 
     def hash_password(self, password: str) -> str:
+        """Return a bcrypt hash of the given plain-text password.
+
+        Args:
+            password: Plain-text password to hash.
+
+        Returns:
+            Hashed password string.
+        """
         return _hash.get_password_hash(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """Check whether a plain-text password matches its stored hash.
+
+        Args:
+            plain_password: Password supplied by the user.
+            hashed_password: Hash retrieved from the database.
+
+        Returns:
+            True if the password matches, False otherwise.
+        """
         return _hash.verify_password(plain_password, hashed_password)
 
     async def create_user(self, user_data: UserCreate) -> User:
+        """Register a new user, fetching a Gravatar avatar as the default.
+
+        Args:
+            user_data: Validated registration payload.
+
+        Returns:
+            Newly created User ORM instance.
+        """
         avatar_url: Optional[str] = None
         try:
             avatar_url = Gravatar(user_data.email).get_image()
@@ -42,23 +73,75 @@ class UserService:
         )
 
     async def get_user_by_username(self, username: str) -> User | None:
+        """Retrieve a user by username.
+
+        Args:
+            username: The username to look up.
+
+        Returns:
+            User instance or None.
+        """
         return await self.user_repository.get_user_by_username(username)
 
     async def get_user_by_email(self, email: str) -> User | None:
+        """Retrieve a user by email address.
+
+        Args:
+            email: The email address to look up.
+
+        Returns:
+            User instance or None.
+        """
         return await self.user_repository.get_user_by_email(email)
 
     async def set_refresh_token(self, user_id: int, refresh_token: str | None) -> bool:
+        """Store or clear the user's refresh token.
+
+        Args:
+            user_id: Target user's database ID.
+            refresh_token: Token to store, or None to log out.
+
+        Returns:
+            True on success, False if the user was not found.
+        """
         return await self.user_repository.set_refresh_token(user_id, refresh_token)
 
     async def confirmed_email(self, email: str) -> None:
+        """Mark a user's email as verified.
+
+        Args:
+            email: The email address to confirm.
+        """
         user = await self.user_repository.get_user_by_email(email)
         if user:
             await self.user_repository.set_verified(user.id, True)
 
     async def update_password(self, user_id: int, hashed_password: str) -> bool:
+        """Update the stored password hash for a user.
+
+        Args:
+            user_id: Target user's database ID.
+            hashed_password: New bcrypt hash.
+
+        Returns:
+            True on success, False if the user was not found.
+        """
         return await self.user_repository.update_password(user_id, hashed_password)
 
     async def upload_avatar(self, user: User, file: UploadFile) -> User | None:
+        """Upload an image to Cloudinary and update the user's avatar URL.
+
+        Args:
+            user: The user whose avatar is being updated.
+            file: Image file received from the multipart request.
+
+        Raises:
+            RuntimeError: If Cloudinary credentials are not configured.
+            HTTPException: 400 on Cloudinary API error, 500 on unexpected failure.
+
+        Returns:
+            Updated User instance with the new avatar URL, or None.
+        """
         if not (
             config.CLOUDINARY_CLOUD_NAME
             and config.CLOUDINARY_API_KEY
@@ -87,4 +170,4 @@ class UserService:
             raise HTTPException(status_code=400, detail="Avatar upload failed")
         except Exception as e:
             logger.error(f"Unexpected error during avatar upload: {e}")
-            raise HTTPException(status_code=500, detail="Server error")          
+            raise HTTPException(status_code=500, detail="Server error")

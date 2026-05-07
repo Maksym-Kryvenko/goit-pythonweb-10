@@ -18,7 +18,10 @@ def test_login(client):
 def test_not_confirmed_login(client):
     response = client.post(
         "/api/auth/login",
-        json={"username": unverified_user["username"], "password": unverified_user["password"]},
+        json={
+            "username": unverified_user["username"],
+            "password": unverified_user["password"],
+        },
     )
     assert response.status_code == 401, response.text
     assert response.json()["detail"] == "Email address not confirmed"
@@ -53,7 +56,11 @@ def test_validation_error_login(client):
 
 def test_signup(client, monkeypatch):
     monkeypatch.setattr("src.services.email.send_email", Mock())
-    new_user = {"username": "agent007", "email": "agent007@gmail.com", "password": "12345678"}
+    new_user = {
+        "username": "agent007",
+        "email": "agent007@gmail.com",
+        "password": "12345678",
+    }
     response = client.post("/api/auth/signup", json=new_user)
     assert response.status_code == 201, response.text
     data = response.json()
@@ -65,7 +72,11 @@ def test_signup(client, monkeypatch):
 
 def test_repeat_signup_email(client, monkeypatch):
     monkeypatch.setattr("src.services.email.send_email", Mock())
-    new_user = {"username": "agent007", "email": "agent007@gmail.com", "password": "12345678"}
+    new_user = {
+        "username": "agent007",
+        "email": "agent007@gmail.com",
+        "password": "12345678",
+    }
     response = client.post("/api/auth/signup", json=new_user)
     assert response.status_code == 409, response.text
     assert response.json()["detail"] == "Email already in use"
@@ -73,7 +84,11 @@ def test_repeat_signup_email(client, monkeypatch):
 
 def test_repeat_signup_username(client, monkeypatch):
     monkeypatch.setattr("src.services.email.send_email", Mock())
-    new_user = {"username": "agent007", "email": "agent008@gmail.com", "password": "12345678"}
+    new_user = {
+        "username": "agent007",
+        "email": "agent008@gmail.com",
+        "password": "12345678",
+    }
     response = client.post("/api/auth/signup", json=new_user)
     assert response.status_code == 409, response.text
     assert response.json()["detail"] == "Username already in use"
@@ -121,8 +136,11 @@ def test_logout(client):
     # Create token directly — logout only validates the JWT signature, not DB match.
     # Avoids hitting the 5/minute rate limit on /api/auth/login.
     from src.conf.config import config
+
     refresh_token = _create_token(
-        {"sub": test_user["username"]}, config.REFRESH_TOKEN_EXPIRE_SECONDS, "refresh_token"
+        {"sub": test_user["username"]},
+        config.REFRESH_TOKEN_EXPIRE_SECONDS,
+        "refresh_token",
     )
     response = client.post("/api/auth/logout", json={"refresh_token": refresh_token})
     assert response.status_code == 204, response.text

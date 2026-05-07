@@ -5,6 +5,11 @@ _redis_client: aioredis.Redis | None = None
 
 
 async def get_redis() -> aioredis.Redis:
+    """Return the shared async Redis client, creating it on first call.
+
+    Returns:
+        A connected :class:`redis.asyncio.Redis` instance with ``decode_responses=True``.
+    """
     global _redis_client
     if _redis_client is None:
         _redis_client = aioredis.Redis(

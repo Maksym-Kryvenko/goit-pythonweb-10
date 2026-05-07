@@ -28,15 +28,17 @@ def sample_contact():
 @pytest.mark.asyncio
 async def test_get_contacts(contact_repository, mock_session):
     mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = [Contact(
-        id=1,
-        first_name="test name",
-        last_name="test surname",
-        email="test_email@gmail.com",
-        phone_number="+380991112233",
-        birthday=date(2005, 5, 5),
-        user_id=1,
-    )]
+    mock_result.scalars.return_value.all.return_value = [
+        Contact(
+            id=1,
+            first_name="test name",
+            last_name="test surname",
+            email="test_email@gmail.com",
+            phone_number="+380991112233",
+            birthday=date(2005, 5, 5),
+            user_id=1,
+        )
+    ]
     mock_session.execute = AsyncMock(return_value=mock_result)
 
     contacts = await contact_repository.get_contacts(skip=0, limit=10)

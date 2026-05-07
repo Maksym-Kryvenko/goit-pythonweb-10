@@ -25,6 +25,16 @@ conf = ConnectionConfig(
 
 
 async def send_email(email: EmailStr, username: str, host: str):
+    """Send an email verification link to the newly registered user.
+
+    Generates a signed JWT and delivers it via the ``verify_email.html`` template.
+    Connection errors are logged and swallowed so registration never fails silently.
+
+    Args:
+        email: Recipient email address.
+        username: Display name included in the email body.
+        host: Base URL of the service, used to build the verification link.
+    """
     try:
         from src.services.auth import create_email_token
 
@@ -44,7 +54,18 @@ async def send_email(email: EmailStr, username: str, host: str):
     except ConnectionErrors as e:
         logger.warning(f"Failed to connect while sending email: {e}")
 
+
 async def send_reset_password_email(email: EmailStr, username: str, host: str):
+    """Send a password-reset link to the user's email address.
+
+    Generates a short-lived signed JWT and delivers it via the ``reset_password.html`` template.
+    Connection errors are logged and swallowed.
+
+    Args:
+        email: Recipient email address.
+        username: Display name included in the email body.
+        host: Base URL of the service, used to build the reset link.
+    """
     try:
         from src.services.auth import create_password_reset_token
 

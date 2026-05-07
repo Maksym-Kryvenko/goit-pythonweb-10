@@ -6,7 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.conf.limiter import limiter
 from src.database.db import get_db_session
 from src.database.redis import get_redis
-from src.schemas.users import UserCreate, UserResponse, Token, RefreshTokenRequest, RequestEmail, LoginRequest, PasswordReset
+from src.schemas.users import (
+    UserCreate,
+    UserResponse,
+    Token,
+    RefreshTokenRequest,
+    RequestEmail,
+    LoginRequest,
+    PasswordReset,
+)
 from src.services.users import UserService
 from src.services.auth import (
     create_access_token,
@@ -15,14 +23,16 @@ from src.services.auth import (
     get_email_from_token,
     invalidate_user_cache,
     create_password_reset_token,
-    verify_password_reset_token
+    verify_password_reset_token,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("3/minute")
 async def signup(
     request: Request,
@@ -30,6 +40,10 @@ async def signup(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
 ):
+    """Register a new user account and send a verification email.
+
+    Returns 409 if the email or username is already taken, 201 on success.
+    """
     user_service = UserService(db)
 
     if await user_service.get_user_by_email(user_data.email):
@@ -47,7 +61,10 @@ async def signup(
     logger.info(f"New user registered: {new_user.username}")
 
     from src.services.email import send_email
-    background_tasks.add_task(send_email, new_user.email, new_user.username, str(request.base_url))
+
+    background_tasks.add_task(
+        send_email, new_user.email, new_user.username, str(request.base_url)
+    )
 
     return new_user
 
@@ -59,9 +76,15 @@ async def login(
     credentials: LoginRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
+    """Authenticate a user and return a JWT access/refresh token pair.
+
+    Returns 401 if credentials are wrong or the email is not yet verified.
+    """
     user_service = UserService(db)
     user = await user_service.get_user_by_username(credentials.username)
-    if not user or not user_service.verify_password(credentials.password, user.hashed_password):
+    if not user or not user_service.verify_password(
+        credentials.password, user.hashed_password
+    ):
         logger.debug(f"Failed login attempt from IP: {request.client.host}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,6 +109,7 @@ async def login(
 
 @router.get("/confirmed_email/{token}")
 async def confirmed_email(token: str, db: AsyncSession = Depends(get_db_session)):
+    """Confirm a user's email address using the token from the verification link."""
     email = await get_email_from_token(token)
     user_service = UserService(db)
     user = await user_service.get_user_by_email(email)
@@ -107,6 +131,7 @@ async def request_email(
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ):
+    """Resend the email verification link for an unconfirmed account."""
     user_service = UserService(db)
     user = await user_service.get_user_by_email(body.email)
 
@@ -114,7 +139,10 @@ async def request_email(
         return {"message": "Your email is already confirmed"}
     if user:
         from src.services.email import send_email
-        background_tasks.add_task(send_email, user.email, user.username, str(request.base_url))
+
+        background_tasks.add_task(
+            send_email, user.email, user.username, str(request.base_url)
+        )
     return {"message": "Check your email for a confirmation link"}
 
 
@@ -126,6 +154,10 @@ async def refresh(
     db: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ):
+    """Issue a new access/refresh token pair using a valid refresh token.
+
+    Returns 401 if the token is invalid or does not match the stored value.
+    """
     username = decode_token(payload.refresh_token, expected_scope="refresh_token")
 
     user_service = UserService(db)
@@ -155,6 +187,7 @@ async def logout(
     db: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ):
+    """Invalidate the user's refresh token and clear the Redis cache. Returns 204."""
     username = decode_token(payload.refresh_token, expected_scope="refresh_token")
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
@@ -172,7 +205,9 @@ async def request_password_reset(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
 ):
+    """Send a password-reset email containing a one-time token link."""
     from src.services.email import send_reset_password_email
+
     user_service = UserService(db)
     user = await user_service.get_user_by_email(body.email)
     if user:
@@ -189,12 +224,18 @@ async def reset_password(
     body: PasswordReset,
     db: AsyncSession = Depends(get_db_session),
 ):
+    """Validate the reset token and update the user's password.
+
+    Returns 404 if the token email does not match any user.
+    """
     email = await verify_password_reset_token(body.token)
 
     user_service = UserService(db)
     user = await user_service.get_user_by_email(email)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     hashed_password = user_service.hash_password(body.new_password)
     await user_service.update_password(user.id, hashed_password)

@@ -15,15 +15,14 @@ from src.services.auth import get_current_user, invalidate_user_cache, require_a
 router = APIRouter(prefix="/api/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
-@router.get(
-    "/me",
-    response_model=UserResponse
-)
+
+@router.get("/me", response_model=UserResponse)
 @limiter.limit("10/minute")
 async def get_my_profile(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
+    """Return the authenticated user's profile data."""
     return current_user
 
 
@@ -39,10 +38,13 @@ async def upload_avatar(
     current_user: User = Depends(require_admin),
     redis: aioredis.Redis = Depends(get_redis),
 ):
+    """Upload a new avatar image to Cloudinary (admin only) and invalidate the user cache."""
     service = UserService(db)
     updated = await service.upload_avatar(current_user, file)
     if not updated:
         logger.warning(f"User not found: {current_user.username}.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     await invalidate_user_cache(current_user.username, redis)
     return updated
