@@ -1,0 +1,75 @@
+name: API Tests
+
+# Run on every Push or Pull Request in main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Temporal services
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: contacts_test
+        ports:
+          - 5432:5432
+        # Check the db is up
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+
+    steps:
+      # 1. Load to GitHub
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. Install Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.14' 
+
+      # 3. Install Poetry
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      # 4. Add Poetry to Path
+      - name: Add Poetry to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # 5. Use caching for Poetry
+      - name: Cache Poetry dependencies                                                                                 
+        uses: actions/cache@v3                                                                                          
+        with:                                                                                                           
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}                                                  
+          restore-keys: |
+            ${{ runner.os }}-poetry-    
+            
+      # 6. Install dependencies
+      - name: Install dependencies
+        run: poetry install
+
+      # 7. Launch tests
+      - name: Run Pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:testpassword@localhost:5432/contacts_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: super_secret_test_key
+        run: poetry run pytest

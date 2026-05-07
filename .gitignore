@@ -16,3 +16,6 @@ htmlcov/
 
 # Documentation (Sphinx build output)
 docs/build/
+
+# Exclude tests
+!.github/workflows/tests.yml
