@@ -8,6 +8,7 @@ A REST API for contact management built with FastAPI, SQLAlchemy, and PostgreSQL
 - PostgreSQL 13+
 - Docker & Docker Compose (recommended)
 - Poetry (for local development without Docker)
+- Nginx (used as a reverse proxy)
 
 ## Running the Application
 
@@ -26,8 +27,8 @@ docker compose up --build -d
 ```
 
 
-The API will be available at http://localhost:8000  
-Swagger docs at http://localhost:8000/docs
+The API will be available at http://localhost  
+Swagger docs at http://localhost/docs
 
 ---
 
