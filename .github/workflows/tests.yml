@@ -64,7 +64,7 @@ jobs:
             
       # 6. Install dependencies
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-root
 
       # 7. Launch tests
       - name: Run Pytest
