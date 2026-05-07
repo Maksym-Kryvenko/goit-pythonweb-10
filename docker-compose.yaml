@@ -4,12 +4,11 @@ services:
     ports:
       - "${WEB_SERVER_PORT}:8000"
     depends_on:
-      - db
       - redis
     environment:
       - POSTGRESQL_USER=${POSTGRESQL_USER}
       - POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD}
-      - POSTGRESQL_HOST=db
+      - POSTGRESQL_HOST=${POSTGRESQL_HOST}
       - POSTGRESQL_PORT=${POSTGRESQL_PORT}
       - POSTGRESQL_DB=${POSTGRESQL_DB}
       - WEB_SERVER_HOST=${WEB_SERVER_HOST}
@@ -36,21 +35,7 @@ services:
       - USE_CREDENTIALS=${USE_CREDENTIALS}
       - VALIDATE_CERTS=${VALIDATE_CERTS}
 
-  db:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: ${POSTGRESQL_USER}
-      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD}
-      POSTGRES_DB: ${POSTGRESQL_DB}
-    ports:
-      - "${POSTGRESQL_PORT}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    
   redis:
     image: redis:latest
     ports:
       - "6379:6379"
-
-volumes:
-  postgres_data:
