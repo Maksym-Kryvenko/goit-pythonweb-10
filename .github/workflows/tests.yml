@@ -1,4 +1,4 @@
-name: API Tests
+name: CI - API Tests
 
 # Run on every Push or Pull Request in main
 on:
@@ -9,7 +9,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
+
 jobs:
   test:
     runs-on: ubuntu-latest

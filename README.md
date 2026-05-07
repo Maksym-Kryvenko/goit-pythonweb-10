@@ -6,68 +6,99 @@ A REST API for contact management built with FastAPI, SQLAlchemy, and PostgreSQL
 
 - Python 3.14+
 - PostgreSQL 13+
-- Poetry
+- Docker & Docker Compose (recommended)
+- Poetry (for local development without Docker)
 
-## Running with Docker Compose (recommended)
+## Running the Application
 
+By default, the `docker-compose.yml` file is configured to run the application (Web + Redis) and expects an **external/cloud PostgreSQL database**. 
+
+### 1. Environment Setup
+Copy the example environment file and fill in your actual database credentials:
 ```bash
-# 1. Copy environment file and fill in your values
 cp .env.example .env
-
-# 2. Start all services (app + postgres)
-docker compose up --build
-
-# 3. In a separate terminal, run migrations
-docker compose exec web alembic upgrade head
 ```
+*Make sure to set `POSTGRESQL_HOST`, `POSTGRESQL_USER`, and `POSTGRESQL_PASSWORD` to point to your working database.*
+
+### 2. Start Services
+```bash
+docker compose up --build -d
+```
+
 
 The API will be available at http://localhost:8000  
 Swagger docs at http://localhost:8000/docs
 
-## Running locally (without Docker)
+---
 
-**1. Install dependencies**
+## Local Development (with Local Database)
+
+If you don't have a cloud database and want to run PostgreSQL locally inside Docker, update your `docker-compose.yml` by adding the following service and volume:
+
+```yaml
+services:
+  # ... existing web and redis services ...
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: ${POSTGRESQL_USER}
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRESQL_DB}
+    ports:
+      - "${POSTGRESQL_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+*Don't forget to set `POSTGRESQL_HOST=db` in your `.env` file if you use this approach.*
+
+---
+
+## Testing
+
+The project includes both unit and integration tests. To run them locally using Poetry:
+
 ```bash
+# Install dependencies
 poetry install
+
+# Run all tests
+poetry run pytest
+
+# Run with coverage report
+poetry run pytest --cov=.
 ```
 
-**2. Start PostgreSQL**
+---
+
+## Documentation
+
+Code documentation is generated using Sphinx. To build the HTML documentation:
+
 ```bash
-docker run --name contacts-db \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=... \
-  -e POSTGRES_DB=contacts \
-  -p 5432:5432 \
-  -d postgres:13
+cd docs
+make html
 ```
+You can then open `docs/_build/html/index.html` in your browser.
 
-**3. Configure environment**
-```bash
-cp .env.example .env
-# Edit .env to match your database credentials
-```
+---
 
-**4. Create the database** (if not using the docker run command above)
-```bash
-psql -U postgres -c "CREATE DATABASE contacts;"
-```
+## CI/CD
 
-**5. Run migrations**
-```bash
-poetry run alembic upgrade head
-```
+This project uses **GitHub Actions** for automated workflows:
+- **Continuous Integration (CI):** Automatically runs formatting checks and the test suite on every Push/Pull Request.
+- **Continuous Deployment (CD):** Automatically deploys the application to the production server upon successful merges into the `main` branch.
 
-**6. Start the server**
-```bash
-poetry run uvicorn main:app --reload
-```
-
-The API will be available at http://localhost:8000  
-Swagger docs at http://localhost:8000/docs
+---
 
 ## API Endpoints
 
 ### Authentication
+
+All endpoints except `/api/auth/signup`, `/api/auth/login`, `/api/auth/confirmed_email/{token}`, `/api/auth/request_email`, `/api/auth/request-password-reset`, and `/api/auth/reset-password` require a valid JWT access token in the `Authorization` header:
+`Authorization: Bearer <access_token>`
 
 | Method | URL | Description |
 |--------|-----|-------------|
@@ -77,6 +108,19 @@ Swagger docs at http://localhost:8000/docs
 | POST | `/api/auth/logout` | Logout user (invalidate refresh token) |
 | GET | `/api/auth/confirmed_email/{token}` | Confirm email address |
 | POST | `/api/auth/request_email` | Request email confirmation link |
+| POST | `/api/auth/request-password-reset` | Send a password-reset email with a token |
+| POST | `/api/auth/reset-password` | Validate reset token and update password |
+
+#### Login details
+- **Endpoint**: `POST /api/auth/login`                                                  
+- **Body**: JSON                      
+```json                                                                                 
+{                                                                                     
+  "username": "your_username",
+  "password": "your_password"
+}                                                                                       
+```
+*⚠️ Deprecated: form-data (`application/x-www-form-urlencoded`) is no longer supported.*
 
 ### Users
 
@@ -90,10 +134,15 @@ Swagger docs at http://localhost:8000/docs
 | Method | URL | Description |
 |--------|-----|-------------|
 | GET | `/api/contacts/` | List all contacts (supports search & filtering) |
-| GET | `/api/contacts/{id}` | Get contact by ID |
+| GET | `/api/contacts/{contact_id}` | Get contact by ID |
 | POST | `/api/contacts/` | Create a new contact |
-| PATCH | `/api/contacts/{id}` | Partially update a contact |
-| DELETE | `/api/contacts/{id}` | Delete a contact |
+| PATCH | `/api/contacts/{contact_id}` | Partially update a contact |
+| DELETE | `/api/contacts/{contact_id}` | Delete a contact |
+
+#### Query Parameters for `GET /api/contacts/`
+- `q` — search by first name, last name, or email (e.g. `?q=john`)
+- `upcoming_birthdays` — filter contacts with birthdays in the next 7 days (e.g. `?upcoming_birthdays=true`)
+- `skip` / `limit` — pagination (default: `skip=0`, `limit=50`)
 
 ### Utilities
 
@@ -101,33 +150,14 @@ Swagger docs at http://localhost:8000/docs
 |--------|-----|-------------|
 | GET | `/api/utils/healthcheck` | Database health check |
 
-### Query Parameters for `GET /api/contacts/`
+---
 
-- `q` — search by first name, last name, or email (e.g. `?q=john`)
-- `upcoming_birthdays` — filter contacts with birthdays in the next 7 days (e.g. `?upcoming_birthdays=true`)
-- `skip` / `limit` — pagination (default: `skip=0`, `limit=50`)
-
-### Authentication
-
-All endpoints except `/api/auth/signup`, `/api/auth/login`, `/api/auth/confirmed_email/{token}`, and `/api/auth/request_email` require a valid JWT access token in the `Authorization` header:
-
-```
-Authorization: Bearer <access_token>
-```
-### Login                                                                             
-- **Endpoint**: `POST /api/auth/login`                                                  
-- **Body**: JSON                      
-```json                                                                                 
-{                                                                                     
-  "username": "your_username",
-  "password": "your_password"
-}                                                                                       
-- Response: JWT tokens
-                                                                                        
-⚠️  Deprecated: form-data (application/x-www-form-urlencoded) no more suported. 
-  
-### Rate Limiting
-
+## Rate Limiting
+To prevent abuse, the following rate limits are applied:
+- `/api/auth/signup` — 3 requests/minute
+- `/api/auth/login`, `/api/auth/refresh` — 5 requests/minute
+- `/api/auth/request-password-reset`, `/api/auth/reset-password` — 1 request/minute
 - `/api/users/me` — 10 requests/minute
 - `/api/users/avatar` — 5 requests/minute
 - `/api/contacts/*` — 10 requests/minute
+```
