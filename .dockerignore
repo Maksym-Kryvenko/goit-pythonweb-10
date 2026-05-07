@@ -5,6 +5,7 @@
 # Local env files
 .env
 .*/
+*.pem
 
 # Docker files (no need to copy into image)
 Dockerfile

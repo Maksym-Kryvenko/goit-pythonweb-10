@@ -1,6 +1,7 @@
 # Local dev environment variables
 .env
 .*/
+*.pem
 
 # Python
 __pycache__/
