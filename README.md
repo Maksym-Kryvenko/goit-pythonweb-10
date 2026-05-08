@@ -2,8 +2,8 @@
 
 A REST API for contact management built with FastAPI, SQLAlchemy, and PostgreSQL.
 
-![CI](https://github.com/Maksym-Kryvenko/goit-pythonweb-10/actions/workflows/tests.yml/badge.svg)
-![CD](https://github.com/Maksym-Kryvenko/goit-pythonweb-10/actions/workflows/deploy.yml/badge.svg)
+![CI](https://github.com/Maksym-Kryvenko/goit-pythonweb-hw-12/actions/workflows/tests.yml/badge.svg)
+![CD](https://github.com/Maksym-Kryvenko/goit-pythonweb-hw-12/actions/workflows/deploy.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.14%2B-blue)
 
 ## Requirements
