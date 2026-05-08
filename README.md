@@ -2,6 +2,10 @@
 
 A REST API for contact management built with FastAPI, SQLAlchemy, and PostgreSQL.
 
+![CI](https://github.com/Maksym-Kryvenko/goit-pythonweb-10/actions/workflows/tests.yml/badge.svg)
+![CD](https://github.com/Maksym-Kryvenko/goit-pythonweb-10/actions/workflows/deploy.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.14%2B-blue)
+
 ## Requirements
 
 - Python 3.14+
@@ -15,20 +19,53 @@ A REST API for contact management built with FastAPI, SQLAlchemy, and PostgreSQL
 By default, the `docker-compose.yml` file is configured to run the application (Web + Redis) and expects an **external/cloud PostgreSQL database**. 
 
 ### 1. Environment Setup
-Copy the example environment file and fill in your actual database credentials:
+Copy the example environment file and fill in your actual credentials:
 ```bash
 cp .env.example .env
 ```
-*Make sure to set `POSTGRESQL_HOST`, `POSTGRESQL_USER`, and `POSTGRESQL_PASSWORD` to point to your working database.*
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRESQL_USER` | PostgreSQL username |
+| `POSTGRESQL_PASSWORD` | PostgreSQL password |
+| `POSTGRESQL_HOST` | PostgreSQL host (e.g. RDS endpoint or `db` for local Docker) |
+| `POSTGRESQL_PORT` | PostgreSQL port (default: `5432`) |
+| `POSTGRESQL_DB` | Database name |
+| `WEB_SERVER_HOST` | Uvicorn bind host (default: `0.0.0.0`) |
+| `WEB_SERVER_PORT` | Uvicorn port (default: `8000`) |
+| `SECRET_KEY` | Secret key for JWT signing (generate with `openssl rand -hex 32`) |
+| `ALGORITHM` | JWT algorithm (default: `HS256`) |
+| `ACCESS_TOKEN_EXPIRE_SECONDS` | Access token lifetime in seconds |
+| `REFRESH_TOKEN_EXPIRE_SECONDS` | Refresh token lifetime in seconds |
+| `REDIS_HOST` | Redis host |
+| `REDIS_PORT` | Redis port (default: `6379`) |
+| `REDIS_DB` | Redis database index (default: `0`) |
+| `USER_CACHE_TTL` | User profile cache TTL in seconds |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `MAIL_USERNAME` | SMTP login (e.g. Gmail address) |
+| `MAIL_PASSWORD` | SMTP password (for Gmail — use an [App Password](https://myaccount.google.com/apppasswords), not your account password) |
+| `MAIL_FROM` | Sender email address |
+| `MAIL_PORT` | SMTP port (default: `465` for SSL) |
+| `MAIL_SERVER` | SMTP server (e.g. `smtp.gmail.com`) |
+| `MAIL_FROM_NAME` | Display name for outgoing emails |
+| `MAIL_STARTTLS` | Use STARTTLS (`True`/`False`) |
+| `MAIL_SSL_TLS` | Use SSL/TLS (`True`/`False`) |
+| `USE_CREDENTIALS` | Pass credentials to SMTP (`True`/`False`) |
+| `VALIDATE_CERTS` | Validate TLS certificates (`True`/`False`) |
+
+> **Note:** Email is required for account confirmation and password reset. Configure a real SMTP provider (e.g. Gmail with App Password, SendGrid, Mailgun).
 
 ### 2. Start Services
 ```bash
 docker compose up --build -d
 ```
 
-
 The API will be available at http://localhost  
 Swagger docs at http://localhost/docs
+
+> Database migrations run automatically on container start via `docker-entrypoint.sh`.
 
 ---
 
@@ -82,7 +119,7 @@ Code documentation is generated using Sphinx. To build the HTML documentation:
 cd docs
 make html
 ```
-You can then open `docs/_build/html/index.html` in your browser.
+You can then open `docs/build/html/index.html` in your browser.
 
 ---
 
@@ -128,7 +165,7 @@ All endpoints except `/api/auth/signup`, `/api/auth/login`, `/api/auth/confirmed
 | Method | URL | Description |
 |--------|-----|-------------|
 | GET | `/api/users/me` | Get current authenticated user profile |
-| PATCH | `/api/users/avatar` | Upload/update user avatar (Cloudinary) |
+| PATCH | `/api/users/avatar` | Upload/update user avatar to Cloudinary (**admin only**) |
 
 ### Contacts
 
@@ -161,4 +198,3 @@ To prevent abuse, the following rate limits are applied:
 - `/api/users/me` — 10 requests/minute
 - `/api/users/avatar` — 5 requests/minute
 - `/api/contacts/*` — 10 requests/minute
-```
